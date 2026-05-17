@@ -448,7 +448,8 @@ function _loadTrack(embedUrl, autoPlay) {
 }
 
 function buildEmbedUrl(trackUrl) {
-  // auto_play KHÔNG nhúng vào URL — truyền qua options của .load()
+  // Nếu đã là embed URL rồi thì trả về luôn, không encode nữa
+  if (trackUrl.indexOf('w.soundcloud.com/player') !== -1) return trackUrl;
   return 'https://w.soundcloud.com/player/?url='
     + encodeURIComponent(trackUrl)
     + '&buying=false&sharing=false'
