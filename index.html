@@ -341,9 +341,11 @@ function setSrc(src) {
   }
   iframe.src = 'about:blank';
   if (src === 'about:blank') return;
+
   setTimeout(function() {
     iframe.src = src;
-    iframe.onload = function() {
+    // Đợi iframe load xong rồi mới bind widget
+    setTimeout(function() {
       try {
         _widget = SC.Widget(iframe);
         _widget.bind(SC.Widget.Events.READY, function() {
@@ -353,7 +355,7 @@ function setSrc(src) {
           });
         });
       } catch(e) { console.warn('SC Widget error:', e); }
-    };
+    }, 1000); // đợi 1s cho iframe load
   }, 150);
 }
 
