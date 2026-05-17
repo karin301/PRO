@@ -72,21 +72,20 @@
     .badges-row { display: flex; gap: 6px; align-items: center; justify-content: center; user-select: none; }
     .revive-btn-wrap { display: flex; justify-content: center; }
     .word-pve { color: #ffffff; letter-spacing: 4px; }
-    .word-for { color: var(--red); animation: glowRed 2.5s ease-in-out infinite alternate; cursor: pointer; user-select: none; transition: opacity 0.2s; }
+    .word-for {
+      cursor: pointer; user-select: none;
+      transition: color 0.3s, opacity 0.2s;
+      animation: glowFor 2.5s ease-in-out infinite alternate;
+    }
     .word-for:hover { opacity: 0.75; }
-    .word-for.playlist-b { color: var(--blue); animation: glowBlue 2.5s ease-in-out infinite alternate; }
+    @keyframes glowFor {
+      from { text-shadow: 0 0 6px var(--for-color,#ff3c3c), 0 0 18px var(--for-glow,rgba(255,60,60,0.6)); }
+      to   { text-shadow: 0 0 14px var(--for-color,#ff3c3c), 0 0 40px var(--for-glow,rgba(255,60,60,0.9)), 0 0 80px var(--for-glow2,rgba(200,0,0,0.5)); }
+    }
     .word-the { color: rgba(255,255,255,0.75); cursor: pointer; user-select: none; transition: color 0.2s, text-shadow 0.2s; }
     .word-the:hover { color: var(--green); text-shadow: 0 0 12px var(--green), 0 0 30px rgba(63,255,168,0.4); }
     .word-reroll { color: var(--green); animation: glowGreen 2.5s ease-in-out infinite alternate; cursor: pointer; user-select: none; transition: opacity 0.2s; }
     .word-reroll:hover { opacity: 0.75; }
-    @keyframes glowRed {
-      from { text-shadow: 0 0 6px var(--red), 0 0 18px rgba(255,60,60,0.6); }
-      to   { text-shadow: 0 0 14px var(--red), 0 0 40px rgba(255,60,60,0.9), 0 0 80px rgba(200,0,0,0.5); }
-    }
-    @keyframes glowBlue {
-      from { text-shadow: 0 0 6px var(--blue), 0 0 18px rgba(77,159,255,0.6); }
-      to   { text-shadow: 0 0 14px var(--blue), 0 0 40px rgba(77,159,255,0.9), 0 0 80px rgba(0,80,200,0.5); }
-    }
     @keyframes glowGreen {
       from { text-shadow: 0 0 6px var(--green), 0 0 18px rgba(63,255,168,0.5); }
       to   { text-shadow: 0 0 14px var(--green), 0 0 40px rgba(63,255,168,0.8), 0 0 80px rgba(0,180,100,0.4); }
@@ -96,7 +95,6 @@
       padding: 2px 10px; border-radius: 20px; font-size: 0.72rem;
       font-weight: 500; color: #fff; letter-spacing: 0.3px; user-select: none;
     }
-    .badge-t1, .badge-t2 { color: #fff; border-color: rgba(255,255,255,0.25); }
     .btn-outline-warning {
       border: 1px solid rgba(255,190,0,0.5) !important; color: #ffc400 !important;
       background: rgba(255,190,0,0.06) !important; border-radius: 8px !important;
@@ -170,68 +168,93 @@
     .container-fluid { position: relative; z-index: 1; }
 
     /* ── PLAYLIST MODAL ── */
-    #playlistModal .modal-dialog { max-width: 620px; }
-    #playlistModal .modal-content { border-color: rgba(63,255,168,0.25); }
-    .pl-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    #playlistModal .modal-dialog { max-width: 640px; }
+    #playlistModal .modal-content { border-color: rgba(63,255,168,0.2); }
+    .pl-tabs-wrap { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
     .pl-tab {
-      flex: 1; padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12);
+      padding: 5px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12);
       background: rgba(255,255,255,0.04); color: var(--muted); font-family: 'Rajdhani', sans-serif;
-      font-size: 1rem; font-weight: 700; letter-spacing: 2px; cursor: pointer;
-      transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 0.85rem; font-weight: 700; letter-spacing: 1.5px; cursor: pointer;
+      transition: all 0.2s; display: flex; align-items: center; gap: 6px;
     }
-    .pl-tab.active-a { background: rgba(255,60,60,0.15); border-color: var(--red); color: var(--red); }
-    .pl-tab.active-b { background: rgba(77,159,255,0.15); border-color: var(--blue); color: var(--blue); }
-    .pl-tab:hover:not(.active-a):not(.active-b) { background: rgba(255,255,255,0.08); color: #fff; }
-    .pl-dot-a { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: inline-block; }
-    .pl-dot-b { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); display: inline-block; }
-    .pl-track-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; min-height: 40px; max-height: 260px; overflow-y: auto;
+    .pl-tab.active { color: #fff; }
+    .pl-tab:hover:not(.active) { background: rgba(255,255,255,0.08); color: #fff; }
+    .pl-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .pl-tab-add {
+      padding: 5px 12px; border-radius: 8px; border: 1px dashed rgba(63,255,168,0.35);
+      background: transparent; color: rgba(63,255,168,0.6); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
+    }
+    .pl-tab-add:hover { border-color: var(--green); color: var(--green); background: rgba(63,255,168,0.06); }
+    .pl-track-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; min-height: 40px; max-height: 200px; overflow-y: auto;
       scrollbar-width: thin; scrollbar-color: rgba(63,255,168,0.3) transparent; }
     .pl-track-item {
       display: flex; align-items: center; gap: 10px;
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px; padding: 8px 12px; transition: border-color 0.15s;
+      border-radius: 8px; padding: 7px 12px; transition: border-color 0.15s;
     }
-    .pl-track-item:hover { border-color: rgba(255,255,255,0.2); }
+    .pl-track-item:hover { border-color: rgba(255,255,255,0.18); }
     .pl-track-num { color: var(--muted); font-size: 0.7rem; width: 18px; flex-shrink: 0; text-align: right; }
     .pl-track-info { flex: 1; min-width: 0; }
-    .pl-track-title { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pl-track-url { font-size: 0.68rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-track-title { font-weight: 600; font-size: 0.83rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-track-url { font-size: 0.67rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .pl-del-btn {
-      background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.3); color: var(--red);
-      border-radius: 6px; padding: 2px 10px; font-size: 0.72rem; cursor: pointer;
+      background: rgba(255,60,60,0.08); border: 1px solid rgba(255,60,60,0.25); color: var(--red);
+      border-radius: 6px; padding: 2px 9px; font-size: 0.7rem; cursor: pointer;
       transition: all 0.15s; flex-shrink: 0;
     }
-    .pl-del-btn:hover { background: rgba(255,60,60,0.25); border-color: var(--red); }
-    .pl-add-section { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px; }
-    .pl-add-title { font-size: 0.78rem; color: var(--green); font-weight: 600; letter-spacing: 1px; margin-bottom: 10px; }
+    .pl-del-btn:hover { background: rgba(255,60,60,0.22); border-color: var(--red); }
+    .pl-add-section { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 6px; }
+    .pl-add-title { font-size: 0.75rem; color: var(--green); font-weight: 600; letter-spacing: 1px; margin-bottom: 9px; }
     .pl-input {
       width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px; color: #fff; padding: 8px 12px; font-size: 0.82rem;
-      transition: border-color 0.2s; outline: none; margin-bottom: 8px;
+      border-radius: 8px; color: #fff; padding: 7px 12px; font-size: 0.81rem;
+      transition: border-color 0.2s; outline: none; margin-bottom: 7px;
     }
-    .pl-input:focus { border-color: rgba(63,255,168,0.5); box-shadow: 0 0 0 2px rgba(63,255,168,0.08); }
-    .pl-input::placeholder { color: rgba(255,255,255,0.25); }
-    .pl-hint { font-size: 0.68rem; color: var(--muted); margin-bottom: 10px; }
+    .pl-input:focus { border-color: rgba(63,255,168,0.45); box-shadow: 0 0 0 2px rgba(63,255,168,0.07); }
+    .pl-input::placeholder { color: rgba(255,255,255,0.22); }
+    .pl-hint { font-size: 0.67rem; color: var(--muted); margin-bottom: 10px; }
     .pl-hint span { color: #ffc400; }
-    .pl-actions { display: flex; gap: 8px; align-items: center; }
+    .pl-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .btn-pl-add {
-      background: rgba(63,255,168,0.12); border: 1px solid rgba(63,255,168,0.4); color: var(--green);
-      border-radius: 8px; padding: 6px 18px; font-size: 0.8rem; font-weight: 600;
+      background: rgba(63,255,168,0.1); border: 1px solid rgba(63,255,168,0.35); color: var(--green);
+      border-radius: 8px; padding: 5px 16px; font-size: 0.78rem; font-weight: 600;
       cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
     }
-    .btn-pl-add:hover { background: rgba(63,255,168,0.22); border-color: var(--green); box-shadow: 0 0 12px rgba(63,255,168,0.2); }
+    .btn-pl-add:hover { background: rgba(63,255,168,0.2); border-color: var(--green); }
+    .btn-pl-del-list {
+      background: rgba(255,60,60,0.08); border: 1px solid rgba(255,60,60,0.25); color: var(--red);
+      border-radius: 8px; padding: 5px 14px; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
+    }
+    .btn-pl-del-list:hover { background: rgba(255,60,60,0.2); border-color: var(--red); }
     .btn-pl-save {
-      background: linear-gradient(135deg, rgba(255,190,0,0.2), rgba(255,150,0,0.2));
-      border: 1px solid rgba(255,190,0,0.5); color: #ffc400;
-      border-radius: 8px; padding: 6px 22px; font-size: 0.8rem; font-weight: 700;
+      background: linear-gradient(135deg, rgba(255,190,0,0.18), rgba(255,150,0,0.18));
+      border: 1px solid rgba(255,190,0,0.45); color: #ffc400;
+      border-radius: 8px; padding: 5px 20px; font-size: 0.78rem; font-weight: 700;
       cursor: pointer; transition: all 0.2s; letter-spacing: 1px; margin-left: auto;
     }
-    .btn-pl-save:hover { background: linear-gradient(135deg, rgba(255,190,0,0.35), rgba(255,150,0,0.35)); box-shadow: 0 0 16px rgba(255,190,0,0.25); }
-    .pl-count { font-size: 0.72rem; color: var(--muted); }
-    .pl-save-status { font-size: 0.72rem; padding: 3px 10px; border-radius: 6px; display: none; }
-    .pl-save-status.ok { background: rgba(63,255,168,0.12); color: var(--green); border: 1px solid rgba(63,255,168,0.3); display: inline-block; }
-    .pl-save-status.err { background: rgba(255,60,60,0.12); color: var(--red); border: 1px solid rgba(255,60,60,0.3); display: inline-block; }
-    .pl-empty { color: var(--muted); font-size: 0.8rem; text-align: center; padding: 16px 0; }
+    .btn-pl-save:hover { background: linear-gradient(135deg, rgba(255,190,0,0.32), rgba(255,150,0,0.32)); }
+    .pl-count { font-size: 0.7rem; color: var(--muted); margin-bottom: 8px; }
+    .pl-save-status { font-size: 0.7rem; padding: 3px 10px; border-radius: 6px; display: none; }
+    .pl-save-status.ok { background: rgba(63,255,168,0.1); color: var(--green); border: 1px solid rgba(63,255,168,0.28); display: inline-block; }
+    .pl-save-status.err { background: rgba(255,60,60,0.1); color: var(--red); border: 1px solid rgba(255,60,60,0.28); display: inline-block; }
+    .pl-empty { color: var(--muted); font-size: 0.78rem; text-align: center; padding: 14px 0; }
+    .pl-meta-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+    .pl-name-label { font-size: 0.72rem; color: var(--muted); flex-shrink: 0; }
+    .pl-name-input {
+      flex: 1; min-width: 120px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px; color: #fff; padding: 4px 10px; font-size: 0.78rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    .pl-name-input:focus { border-color: rgba(63,255,168,0.4); }
+    .pl-color-label { font-size: 0.72rem; color: var(--muted); flex-shrink: 0; }
+    .pl-color-opts { display: flex; gap: 6px; align-items: center; }
+    .pl-color-opt {
+      width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: all 0.15s; flex-shrink: 0;
+    }
+    .pl-color-opt.selected { border-color: #fff; transform: scale(1.25); }
   </style>
 </head>
 <body>
@@ -260,35 +283,30 @@
   <div class="modal fade" id="playlistModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content p-3">
-        <div class="modal-header border-0 pb-2 pt-1">
-          <h5 class="modal-title fw-bold" style="font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:1.1rem;">
+        <div class="modal-header border-0 pb-1 pt-1">
+          <h5 class="modal-title fw-bold" style="font-family:'Rajdhani',sans-serif;letter-spacing:3px;font-size:1.05rem;">
             🎵 QUẢN LÝ PLAYLIST
           </h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body pt-2">
-          <!-- Tabs -->
-          <div class="pl-tabs">
-            <button class="pl-tab active-a" id="tabA" onclick="switchPlTab('a')">
-              <span class="pl-dot-a"></span> PLAYLIST A
-            </button>
-            <button class="pl-tab" id="tabB" onclick="switchPlTab('b')">
-              <span class="pl-dot-b"></span> PLAYLIST B
-            </button>
+          <div class="pl-tabs-wrap" id="plTabsWrap"></div>
+          <div class="pl-meta-row">
+            <span class="pl-name-label">Tên:</span>
+            <input class="pl-name-input" id="plNameInput" placeholder="Tên playlist">
+            <span class="pl-color-label">Màu:</span>
+            <div class="pl-color-opts" id="plColorOpts"></div>
           </div>
-
-          <!-- Track list -->
-          <div class="pl-track-list" id="plTrackList"></div>
           <div class="pl-count" id="plCount"></div>
-
-          <!-- Add new -->
-          <div class="pl-add-section mt-3">
+          <div class="pl-track-list" id="plTrackList"></div>
+          <div class="pl-add-section">
             <div class="pl-add-title">+ THÊM BÀI MỚI</div>
             <input class="pl-input" id="plInputTitle" placeholder="Tên bài (hiển thị trên player)">
             <input class="pl-input" id="plInputUrl" placeholder="soundcloud.com/artist/song">
             <div class="pl-hint"><span>⚠</span> Chỉ paste link thường — KHÔNG paste thẻ &lt;iframe&gt;</div>
             <div class="pl-actions">
-              <button class="btn-pl-add" onclick="plAddTrack()">Thêm</button>
+              <button class="btn-pl-add" onclick="plAddTrack()">Thêm bài</button>
+              <button class="btn-pl-del-list" onclick="plDeleteList()">Xoá playlist</button>
               <span class="pl-save-status" id="plSaveStatus"></span>
               <button class="btn-pl-save" onclick="plSave()">💾 Lưu</button>
             </div>
@@ -352,16 +370,31 @@
 <script>
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbytSfqVD5DMg-X3VMX8gm9M03JUZ-ejrPiw26_ECrzEB48rNXzMdlwsbXwiS5ERikDf/exec';
 
-var PLAYLISTS = { a: { tracks: [] }, b: { tracks: [] } };
-var currentPlaylistKey = 'a';
-var currentTrackIndex  = -1;
-var isPlaying          = false;
-var currentData        = null;
-var reviveModal        = null;
-var playlistModal      = null;
-var queues             = { a: [], b: [] };
-var _widget            = null;
-var activePlTab        = 'a';
+var PALETTE = [
+  { hex: '#ff3c3c', glow: 'rgba(255,60,60,0.7)',   glow2: 'rgba(200,0,0,0.5)' },
+  { hex: '#4d9fff', glow: 'rgba(77,159,255,0.7)',  glow2: 'rgba(0,80,200,0.5)' },
+  { hex: '#3fffa8', glow: 'rgba(63,255,168,0.7)',  glow2: 'rgba(0,180,100,0.5)' },
+  { hex: '#ff9f3c', glow: 'rgba(255,159,60,0.7)',  glow2: 'rgba(200,80,0,0.5)' },
+  { hex: '#c97fff', glow: 'rgba(201,127,255,0.7)', glow2: 'rgba(120,0,200,0.5)' },
+  { hex: '#ffee3c', glow: 'rgba(255,238,60,0.7)',  glow2: 'rgba(180,160,0,0.5)' },
+  { hex: '#ff5faa', glow: 'rgba(255,95,170,0.7)',  glow2: 'rgba(180,0,100,0.5)' },
+  { hex: '#3cfff5', glow: 'rgba(60,255,245,0.7)',  glow2: 'rgba(0,160,180,0.5)' },
+];
+
+var PLAYLISTS = [
+  { name: 'Playlist A', color: 0, tracks: [] },
+  { name: 'Playlist B', color: 1, tracks: [] },
+];
+
+var currentPlIdx      = 0;
+var currentTrackIndex = -1;
+var isPlaying         = false;
+var currentData       = null;
+var reviveModal       = null;
+var playlistModal     = null;
+var queues            = [[], []];
+var _widget           = null;
+var activePlTab       = 0;
 
 // ═══════════════════════════════════════════
 //  JSONP
@@ -378,7 +411,6 @@ function jsonp(url, callback) {
   script.onerror = function() {
     delete window[name];
     if (script.parentNode) script.parentNode.removeChild(script);
-    console.warn('JSONP error:', url);
     callback(null);
   };
   document.head.appendChild(script);
@@ -389,69 +421,139 @@ function jsonp(url, callback) {
 // ═══════════════════════════════════════════
 jsonp(GAS_URL + '?action=getPlaylists', function(data) {
   if (!data) return;
-  if (data.a) PLAYLISTS.a = data.a;
-  if (data.b) PLAYLISTS.b = data.b;
-  queues.a = []; queues.b = [];
+  if (Array.isArray(data)) {
+    PLAYLISTS = data;
+  } else {
+    var arr = [];
+    if (data.a) arr.push({ name: 'Playlist A', color: 0, tracks: data.a.tracks || [] });
+    if (data.b) arr.push({ name: 'Playlist B', color: 1, tracks: data.b.tracks || [] });
+    if (arr.length) PLAYLISTS = arr;
+  }
+  queues = PLAYLISTS.map(function(){ return []; });
+  updateForBtn();
 });
 
 // ═══════════════════════════════════════════
-//  PLAYLIST MANAGER (inline modal)
+//  FOR BUTTON
+// ═══════════════════════════════════════════
+function updateForBtn() {
+  var pl = PLAYLISTS[currentPlIdx];
+  if (!pl) return;
+  var c = PALETTE[pl.color % PALETTE.length];
+  var btn = document.getElementById('forBtn');
+  btn.style.color = c.hex;
+  btn.style.setProperty('--for-color', c.hex);
+  btn.style.setProperty('--for-glow',  c.glow);
+  btn.style.setProperty('--for-glow2', c.glow2);
+}
+
+// ═══════════════════════════════════════════
+//  PLAYLIST MANAGER
 // ═══════════════════════════════════════════
 function openPlaylistManager() {
-  activePlTab = 'a';
-  renderPlTab();
+  activePlTab = currentPlIdx;
+  renderPlModal();
   playlistModal.show();
 }
 
-function switchPlTab(key) {
-  activePlTab = key;
-  document.getElementById('tabA').className = 'pl-tab' + (key === 'a' ? ' active-a' : '');
-  document.getElementById('tabB').className = 'pl-tab' + (key === 'b' ? ' active-b' : '');
-  renderPlTab();
+function renderPlModal() {
+  // Tabs
+  var wrap = document.getElementById('plTabsWrap');
+  wrap.innerHTML = '';
+  PLAYLISTS.forEach(function(pl, i) {
+    var c = PALETTE[pl.color % PALETTE.length];
+    var btn = document.createElement('button');
+    btn.className = 'pl-tab' + (i === activePlTab ? ' active' : '');
+    if (i === activePlTab) { btn.style.borderColor = c.hex; btn.style.color = c.hex; }
+    btn.innerHTML = '<span class="pl-dot" style="background:' + c.hex + '"></span>' + escHtml(pl.name);
+    btn.onclick = (function(idx){ return function(){ activePlTab = idx; renderPlModal(); }; })(i);
+    wrap.appendChild(btn);
+  });
+  var addBtn = document.createElement('button');
+  addBtn.className = 'pl-tab-add';
+  addBtn.innerText = '+ Thêm list';
+  addBtn.onclick = plAddList;
+  wrap.appendChild(addBtn);
+
+  renderPlTabContent();
 }
 
-function renderPlTab() {
-  var tracks = PLAYLISTS[activePlTab].tracks;
-  var list = document.getElementById('plTrackList');
-  document.getElementById('plCount').innerText = 'Playlist ' + activePlTab.toUpperCase() + ': ' + tracks.length + ' bài';
-  document.getElementById('plInputTitle').value = '';
-  document.getElementById('plInputUrl').value = '';
+function renderPlTabContent() {
+  var pl = PLAYLISTS[activePlTab];
+  if (!pl) return;
 
+  // Name
+  var nameInp = document.getElementById('plNameInput');
+  nameInp.value = pl.name;
+  nameInp.oninput = function() { PLAYLISTS[activePlTab].name = this.value; };
+
+  // Color picker
+  var opts = document.getElementById('plColorOpts');
+  opts.innerHTML = '';
+  PALETTE.forEach(function(c, i) {
+    var dot = document.createElement('div');
+    dot.className = 'pl-color-opt' + (pl.color === i ? ' selected' : '');
+    dot.style.background = c.hex;
+    dot.onclick = (function(idx){ return function() {
+      PLAYLISTS[activePlTab].color = idx;
+      if (activePlTab === currentPlIdx) updateForBtn();
+      renderPlModal();
+    }; })(i);
+    opts.appendChild(dot);
+  });
+
+  // Tracks
+  var tracks = pl.tracks;
+  document.getElementById('plCount').innerText = escHtml(pl.name) + ': ' + tracks.length + ' bài';
+  var list = document.getElementById('plTrackList');
   if (!tracks.length) {
     list.innerHTML = '<div class="pl-empty">Chưa có bài nào</div>';
-    return;
+  } else {
+    list.innerHTML = tracks.map(function(t, i) {
+      return '<div class="pl-track-item">' +
+        '<span class="pl-track-num">' + (i+1) + '</span>' +
+        '<div class="pl-track-info">' +
+          '<div class="pl-track-title">' + escHtml(t.title) + '</div>' +
+          '<div class="pl-track-url">' + escHtml(t.url) + '</div>' +
+        '</div>' +
+        '<button class="pl-del-btn" onclick="plDeleteTrack(' + i + ')">Xoá</button>' +
+      '</div>';
+    }).join('');
   }
-  list.innerHTML = tracks.map(function(t, i) {
-    return '<div class="pl-track-item">' +
-      '<span class="pl-track-num">' + (i + 1) + '</span>' +
-      '<div class="pl-track-info">' +
-        '<div class="pl-track-title">' + escHtml(t.title) + '</div>' +
-        '<div class="pl-track-url">' + escHtml(t.url) + '</div>' +
-      '</div>' +
-      '<button class="pl-del-btn" onclick="plDeleteTrack(' + i + ')">Xoá</button>' +
-    '</div>';
-  }).join('');
+  document.getElementById('plInputTitle').value = '';
+  document.getElementById('plInputUrl').value = '';
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function plAddList() {
+  PLAYLISTS.push({ name: 'Playlist ' + (PLAYLISTS.length + 1), color: PLAYLISTS.length % PALETTE.length, tracks: [] });
+  queues.push([]);
+  activePlTab = PLAYLISTS.length - 1;
+  renderPlModal();
+}
+
+function plDeleteList() {
+  if (PLAYLISTS.length <= 1) return;
+  PLAYLISTS.splice(activePlTab, 1);
+  queues.splice(activePlTab, 1);
+  if (currentPlIdx >= PLAYLISTS.length) { currentPlIdx = 0; updateForBtn(); }
+  activePlTab = Math.min(activePlTab, PLAYLISTS.length - 1);
+  renderPlModal();
 }
 
 function plAddTrack() {
   var title = document.getElementById('plInputTitle').value.trim();
   var url   = document.getElementById('plInputUrl').value.trim();
   if (!title || !url) return;
-  // Normalize: strip embed prefix if user accidentally pastes embed URL
   url = url.replace(/^https?:\/\/w\.soundcloud\.com\/player\/\?url=/, '');
   try { url = decodeURIComponent(url); } catch(e) {}
   if (!url.startsWith('http')) url = 'https://' + url;
   PLAYLISTS[activePlTab].tracks.push({ title: title, url: url });
-  renderPlTab();
+  renderPlTabContent();
 }
 
 function plDeleteTrack(idx) {
   PLAYLISTS[activePlTab].tracks.splice(idx, 1);
-  renderPlTab();
+  renderPlTabContent();
 }
 
 function plSave() {
@@ -459,12 +561,11 @@ function plSave() {
   status.className = 'pl-save-status';
   status.innerText = 'Đang lưu...';
   status.style.display = 'inline-block';
-  var encoded = encodeURIComponent(JSON.stringify(PLAYLISTS));
-  jsonp(GAS_URL + '?action=savePlaylists&data=' + encoded, function(res) {
+  jsonp(GAS_URL + '?action=savePlaylists&data=' + encodeURIComponent(JSON.stringify(PLAYLISTS)), function(res) {
     if (res && res.ok) {
       status.className = 'pl-save-status ok';
       status.innerText = '✓ Đã lưu';
-      queues.a = []; queues.b = [];
+      queues = PLAYLISTS.map(function(){ return []; });
     } else {
       status.className = 'pl-save-status err';
       status.innerText = '✗ Lỗi lưu';
@@ -473,22 +574,33 @@ function plSave() {
   });
 }
 
+function escHtml(s) {
+  if (!s) return '';
+  return s.toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ═══════════════════════════════════════════
-//  QUEUE / SHUFFLE
+//  QUEUE / SHUFFLE — fixed
 // ═══════════════════════════════════════════
-function buildQueue(key, excludeIdx) {
-  var len = PLAYLISTS[key].tracks.length;
+function buildQueue(plIdx, excludeIdx) {
+  var tracks = PLAYLISTS[plIdx] ? PLAYLISTS[plIdx].tracks : [];
+  var len = tracks.length;
   var pool = [];
-  for (var i = 0; i < len; i++) { if (i !== excludeIdx) pool.push(i); }
+  for (var i = 0; i < len; i++) {
+    if (len === 1 || i !== excludeIdx) pool.push(i);
+  }
   for (var i = pool.length - 1; i > 0; i--) {
     var j = Math.floor(Math.random() * (i + 1));
     var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
   }
-  queues[key] = pool;
+  if (!queues[plIdx]) queues[plIdx] = [];
+  queues[plIdx] = pool;
 }
-function popNext(key) {
-  if (!queues[key].length) buildQueue(key, currentTrackIndex);
-  return queues[key].shift();
+
+function popNext(plIdx) {
+  if (!queues[plIdx] || !queues[plIdx].length) buildQueue(plIdx, currentTrackIndex);
+  if (!queues[plIdx] || !queues[plIdx].length) return Math.max(0, currentTrackIndex);
+  return queues[plIdx].shift();
 }
 
 function buildEmbedUrl(trackUrl) {
@@ -516,19 +628,20 @@ function setSrc(src) {
     _widget.bind(SC.Widget.Events.READY, function() {
       _widget.bind(SC.Widget.Events.FINISH, function() {
         if (!isPlaying) return;
-        playTrack(currentPlaylistKey, popNext(currentPlaylistKey));
+        playTrack(currentPlIdx, popNext(currentPlIdx));
       });
     });
   }, 150);
 }
 
-function playTrack(playlistKey, trackIndex) {
-  var track = PLAYLISTS[playlistKey].tracks[trackIndex];
-  if (!track) return;
-  currentPlaylistKey = playlistKey;
-  currentTrackIndex  = trackIndex;
-  setSrc(buildEmbedUrl(track.url));
+function playTrack(plIdx, trackIndex) {
+  var pl = PLAYLISTS[plIdx];
+  if (!pl || !pl.tracks[trackIndex]) return;
+  currentPlIdx      = plIdx;
+  currentTrackIndex = trackIndex;
+  setSrc(buildEmbedUrl(pl.tracks[trackIndex].url));
   setPlayingUI(true);
+  updateForBtn();
 }
 
 function setPlayingUI(playing) {
@@ -539,10 +652,10 @@ function setPlayingUI(playing) {
 function toggleMusic() {
   if (!isPlaying) {
     if (currentTrackIndex === -1) {
-      buildQueue(currentPlaylistKey, -1);
-      playTrack(currentPlaylistKey, popNext(currentPlaylistKey));
+      buildQueue(currentPlIdx, -1);
+      playTrack(currentPlIdx, popNext(currentPlIdx));
     } else {
-      setSrc(buildEmbedUrl(PLAYLISTS[currentPlaylistKey].tracks[currentTrackIndex].url));
+      setSrc(buildEmbedUrl(PLAYLISTS[currentPlIdx].tracks[currentTrackIndex].url));
       setPlayingUI(true);
     }
   } else {
@@ -552,17 +665,17 @@ function toggleMusic() {
 }
 
 function switchPlaylist() {
-  var nextKey = currentPlaylistKey === 'a' ? 'b' : 'a';
-  document.getElementById('forBtn').classList.toggle('playlist-b', nextKey === 'b');
-  buildQueue(nextKey, -1);
-  var idx = popNext(nextKey);
-  if (isPlaying) { playTrack(nextKey, idx); }
-  else { currentPlaylistKey = nextKey; currentTrackIndex = idx; }
+  var nextIdx = (currentPlIdx + 1) % PLAYLISTS.length;
+  currentPlIdx = nextIdx;
+  buildQueue(nextIdx, -1);
+  var idx = popNext(nextIdx);
+  if (isPlaying) { playTrack(nextIdx, idx); }
+  else { currentTrackIndex = idx; updateForBtn(); }
 }
 
 function rerollTrack() {
-  buildQueue(currentPlaylistKey, currentTrackIndex);
-  playTrack(currentPlaylistKey, popNext(currentPlaylistKey));
+  buildQueue(currentPlIdx, currentTrackIndex);
+  playTrack(currentPlIdx, popNext(currentPlIdx));
 }
 
 // ═══════════════════════════════════════════
@@ -571,6 +684,7 @@ function rerollTrack() {
 document.addEventListener('DOMContentLoaded', function() {
   reviveModal   = new bootstrap.Modal(document.getElementById('reviveModal'));
   playlistModal = new bootstrap.Modal(document.getElementById('playlistModal'));
+  updateForBtn();
 });
 
 function showLoading(show) {
