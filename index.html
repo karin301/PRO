@@ -586,19 +586,18 @@ function nextIndex(plIdx, current) {
 //  SC WIDGET — khởi tạo một lần, dùng .load()
 // ═══════════════════════════════════════════
 function initWidget() {
-  var iframe = document.getElementById('scPlayer');
-  // Load bài đầu tiên vào iframe để widget sẵn sàng
+  // Nếu playlist chưa có track thì thử lại sau 1s
   var pl = PLAYLISTS[currentPlIdx];
-  if (!pl || !pl.tracks.length) return;
-  var src = buildEmbedUrl(pl.tracks[0].url, false); // load tĩnh, chưa auto_play
+  if (!pl || !pl.tracks.length) {
+    setTimeout(initWidget, 1000);
+    return;
+  }
+  var src = buildEmbedUrl(pl.tracks[0].url, false);
+  var iframe = document.getElementById('scPlayer');
   iframe.src = src;
   _widget = SC.Widget(iframe);
   _widget.bind(SC.Widget.Events.READY, function() {
     _iframeReady = true;
-    if (_pendingSrc) {
-      _widget.load(_pendingSrc, { auto_play: true });
-      _pendingSrc = null;
-    }
     _bindFinish();
   });
 }
@@ -630,12 +629,12 @@ function playTrack(plIdx, trackIndex) {
   currentTrackIndex = trackIndex;
   _finishGuard      = false;
 
-  var url = buildEmbedUrl(pl.tracks[trackIndex].url, true);
+  var embedUrl = buildEmbedUrl(pl.tracks[trackIndex].url, true);
 
-  if (!_iframeReady) {
-    // Widget chưa init hoặc chưa ready → dùng iframe src thẳng
+  if (!_widget || !_iframeReady) {
+    // Widget chưa sẵn sàng → set src iframe, tạo lại widget
     var iframe = document.getElementById('scPlayer');
-    iframe.src = url;
+    iframe.src = embedUrl;
     _iframeReady = false;
     _widget = SC.Widget(iframe);
     _widget.bind(SC.Widget.Events.READY, function() {
@@ -643,9 +642,8 @@ function playTrack(plIdx, trackIndex) {
       _bindFinish();
     });
   } else {
-    // Widget đã ready → dùng .load() để không reload iframe
-    _widget.load(url, { auto_play: true });
-    // Rebind FINISH sau load (SC API yêu cầu rebind sau mỗi lần load)
+    // Widget đã ready → dùng .load()
+    _widget.load(embedUrl, { auto_play: true });
     setTimeout(function() { _bindFinish(); }, 1500);
   }
 
@@ -702,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
   reviveModal   = new bootstrap.Modal(document.getElementById('reviveModal'));
   playlistModal = new bootstrap.Modal(document.getElementById('playlistModal'));
   updateForBtn();
+  initWidget();
 });
 
 function showLoading(show) {
