@@ -598,8 +598,8 @@ function buildQueue(plIdx, excludeIdx) {
 }
 
 function popNext(plIdx) {
-  if (!queues[plIdx] || !queues[plIdx].length) buildQueue(plIdx, currentTrackIndex);
-  if (!queues[plIdx] || !queues[plIdx].length) return Math.max(0, currentTrackIndex);
+  if (!queues[plIdx] || !queues[plIdx].length) buildQueue(plIdx, -1);
+  if (!queues[plIdx] || !queues[plIdx].length) return 0;
   return queues[plIdx].shift();
 }
 
