@@ -414,6 +414,7 @@ var _pendingPlay = null; // track cần play khi widget chưa ready
 
 function initWidget() {
   var iframe = document.getElementById('scPlayer');
+  iframe.src = 'https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/martingarrix/animals&auto_play=false';
   _widget = SC.Widget(iframe);
 
   _widget.bind(SC.Widget.Events.READY, function() {
