@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>⚔️ PVE for the Reroll</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -168,6 +166,8 @@
     .modal-header { border-bottom: 1px solid rgba(255,255,255,0.08); }
     .modal-footer { border-top: 1px solid rgba(255,255,255,0.08); }
     .container-fluid { position: relative; z-index: 1; }
+
+    /* ── PLAYLIST MODAL ── */
     #playlistModal .modal-dialog { max-width: 640px; }
     #playlistModal .modal-content { border-color: rgba(63,255,168,0.2); }
     .pl-tabs-wrap { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
@@ -316,14 +316,7 @@
     </div>
   </div>
 
-  <!--
-    QUAN TRỌNG: iframe phải có src SC hợp lệ ngay từ đầu.
-    SC.Widget() chỉ hoạt động nếu iframe đang load domain soundcloud.
-    Dùng 1 URL discover làm "placeholder" — sẽ bị .load() đè ngay khi user bấm play.
-  -->
-  <iframe id="scPlayer"
-   src="about:blank"
-    allow="autoplay" scrolling="no" frameborder="no"></iframe>
+  <iframe id="scPlayer" src="about:blank" allow="autoplay" scrolling="no" frameborder="no"></iframe>
 
   <div id="header">
     <div class="container-fluid px-4">
@@ -349,7 +342,7 @@
             <span class="word-pve">PVE</span>
             <span class="word-for" id="forBtn" onclick="switchPlaylist()" title="Đổi playlist">FOR</span>
             <span class="word-the" onclick="openPlaylistManager()" title="Quản lý playlist">THE</span>
-            <span class="word-reroll" onclick="rerollTrack()" title="Bài tiếp theo">REROLLLLLL</span>
+            <span class="word-reroll" onclick="rerollTrack()" title="Random bài khác">REROLLLLLL</span>
           </div>
           <div class="badges-row">
             <span class="info-badge">Hàng đợi: <span id="totalOwned">0</span></span>
@@ -375,7 +368,7 @@
   </div>
 
 <script>
-var GAS_URL = 'https://script.google.com/macros/s/AKfycby98ZHrtOspdhx-J9wa5CDvHKU4YagbXoNhVtKWyFormlx2cADqK_bRQIGcyKj6hrhc/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbytSfqVD5DMg-X3VMX8gm9M03JUZ-ejrPiw26_ECrzEB48rNXzMdlwsbXwiS5ERikDf/exec';
 
 var PALETTE = [
   { hex: '#ff3c3c', glow: 'rgba(255,60,60,0.7)',   glow2: 'rgba(200,0,0,0.5)' },
@@ -388,139 +381,20 @@ var PALETTE = [
   { hex: '#3cfff5', glow: 'rgba(60,255,245,0.7)',  glow2: 'rgba(0,160,180,0.5)' },
 ];
 
-var PLAYLISTS      = [
+var PLAYLISTS = [
   { name: 'Playlist A', color: 0, tracks: [] },
   { name: 'Playlist B', color: 1, tracks: [] },
 ];
+
 var currentPlIdx      = 0;
 var currentTrackIndex = -1;
 var isPlaying         = false;
 var currentData       = null;
 var reviveModal       = null;
 var playlistModal     = null;
+var queues            = [[], []];
+var _widget           = null;
 var activePlTab       = 0;
-
-// ═══════════════════════════════════════════
-//  SC WIDGET
-//  Nguyên tắc:
-//    - Tạo widget 1 lần duy nhất trong initWidget()
-//    - Mỗi lần đổi bài → gọi _widget.load(url, {auto_play:true})
-//    - Sau mỗi .load() widget fire READY lại → ta rebind FINISH trong đó
-//    - KHÔNG bao giờ tạo lại widget hay thay iframe.src nữa
-// ═══════════════════════════════════════════
-var _widget      = null;
-var _widgetReady = false;
-var _pendingPlay = null; // track cần play khi widget chưa ready
-
-function initWidget() {
-  var iframe = document.getElementById('scPlayer');
-  iframe.src = 'https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/martingarrix/animals&auto_play=false';
-  _widget = SC.Widget(iframe);
-
-  _widget.bind(SC.Widget.Events.READY, function() {
-    _widgetReady = true;
-    _bindEvents();                // bind FINISH + chuẩn bị cho lần READY tiếp
-    if (_pendingPlay) {
-      var p = _pendingPlay;
-      _pendingPlay = null;
-      _loadTrack(p.url, p.autoPlay);
-    }
-  });
-}
-
-// Bind FINISH. Sau mỗi .load() widget fire READY → ta gọi lại hàm này.
-// Dùng unbind trước để tránh event bị nhân đôi.
-function _bindEvents() {
-  _widget.unbind(SC.Widget.Events.FINISH);
-  _widget.bind(SC.Widget.Events.FINISH, function() {
-    if (!isPlaying) return;
-    playNext();
-  });
-
-  // Sau mỗi .load() widget fire READY 1 lần nữa → rebind lại FINISH
-  _widget.unbind(SC.Widget.Events.READY);
-  _widget.bind(SC.Widget.Events.READY, function() {
-    _bindEvents();
-  });
-}
-
-function _loadTrack(embedUrl, autoPlay) {
-  _widget.load(embedUrl, { auto_play: autoPlay });
-}
-
-function buildEmbedUrl(trackUrl) {
-  // Nếu đã là embed URL rồi thì trả về luôn, không encode nữa
-  if (trackUrl.indexOf('w.soundcloud.com/player') !== -1) return trackUrl;
-  return 'https://w.soundcloud.com/player/?url='
-    + encodeURIComponent(trackUrl)
-    + '&buying=false&sharing=false'
-    + '&show_artwork=false&show_comments=false'
-    + '&show_playcount=false&show_user=false&hide_related=true';
-}
-
-// ── Phát 1 track ──
-function playTrack(plIdx, trackIdx) {
-  var pl = PLAYLISTS[plIdx];
-  if (!pl || !pl.tracks[trackIdx]) return;
-
-  currentPlIdx      = plIdx;
-  currentTrackIndex = trackIdx;
-
-  var url = buildEmbedUrl(pl.tracks[trackIdx].url);
-
-  if (!_widgetReady) {
-    _pendingPlay = { url: url, autoPlay: true };
-  } else {
-    _loadTrack(url, true);
-  }
-
-  setPlayingUI(true);
-  updateForBtn();
-}
-
-function playNext() {
-  var pl = PLAYLISTS[currentPlIdx];
-  if (!pl || !pl.tracks.length) return;
-  var next = (currentTrackIndex + 1) % pl.tracks.length;
-  playTrack(currentPlIdx, next);
-}
-
-function setPlayingUI(on) {
-  isPlaying = on;
-  document.getElementById('musicImg').classList.toggle('playing', on);
-}
-
-// ── Toggle play/pause (bấm avatar) ──
-function toggleMusic() {
-  if (!isPlaying) {
-    var idx = (currentTrackIndex < 0) ? 0 : currentTrackIndex;
-    playTrack(currentPlIdx, idx);
-  } else {
-    if (_widget && _widgetReady) {
-      try { _widget.pause(); } catch(e) {}
-    }
-    setPlayingUI(false);
-  }
-}
-
-// ── Bấm "FOR" → đổi playlist kế tiếp ──
-function switchPlaylist() {
-  currentPlIdx = (currentPlIdx + 1) % PLAYLISTS.length;
-  currentTrackIndex = -1;
-  updateForBtn();
-  if (isPlaying) {
-    playTrack(currentPlIdx, 0);
-  }
-}
-
-// ── Bấm "REROLLLLLL" → bài tiếp theo ──
-function rerollTrack() {
-  var pl = PLAYLISTS[currentPlIdx];
-  if (!pl || !pl.tracks.length) return;
-  // Nếu chưa phát bài nào thì phát bài đầu; ngược lại phát bài kế tiếp
-  var next = (currentTrackIndex < 0) ? 0 : (currentTrackIndex + 1) % pl.tracks.length;
-  playTrack(currentPlIdx, next);
-}
 
 // ═══════════════════════════════════════════
 //  JSONP
@@ -543,7 +417,7 @@ function jsonp(url, callback) {
 }
 
 // ═══════════════════════════════════════════
-//  LOAD PLAYLISTS TỪ SERVER
+//  LOAD PLAYLISTS
 // ═══════════════════════════════════════════
 jsonp(GAS_URL + '?action=getPlaylists', function(data) {
   if (!data) return;
@@ -555,11 +429,12 @@ jsonp(GAS_URL + '?action=getPlaylists', function(data) {
     if (data.b) arr.push({ name: 'Playlist B', color: 1, tracks: data.b.tracks || [] });
     if (arr.length) PLAYLISTS = arr;
   }
+  queues = PLAYLISTS.map(function(){ return []; });
   updateForBtn();
 });
 
 // ═══════════════════════════════════════════
-//  FOR BUTTON COLOR
+//  FOR BUTTON
 // ═══════════════════════════════════════════
 function updateForBtn() {
   var pl = PLAYLISTS[currentPlIdx];
@@ -573,7 +448,7 @@ function updateForBtn() {
 }
 
 // ═══════════════════════════════════════════
-//  PLAYLIST MANAGER UI
+//  PLAYLIST MANAGER
 // ═══════════════════════════════════════════
 function openPlaylistManager() {
   activePlTab = currentPlIdx;
@@ -582,6 +457,7 @@ function openPlaylistManager() {
 }
 
 function renderPlModal() {
+  // Tabs
   var wrap = document.getElementById('plTabsWrap');
   wrap.innerHTML = '';
   PLAYLISTS.forEach(function(pl, i) {
@@ -598,15 +474,20 @@ function renderPlModal() {
   addBtn.innerText = '+ Thêm list';
   addBtn.onclick = plAddList;
   wrap.appendChild(addBtn);
+
   renderPlTabContent();
 }
 
 function renderPlTabContent() {
   var pl = PLAYLISTS[activePlTab];
   if (!pl) return;
+
+  // Name
   var nameInp = document.getElementById('plNameInput');
   nameInp.value = pl.name;
   nameInp.oninput = function() { PLAYLISTS[activePlTab].name = this.value; };
+
+  // Color picker
   var opts = document.getElementById('plColorOpts');
   opts.innerHTML = '';
   PALETTE.forEach(function(c, i) {
@@ -620,6 +501,8 @@ function renderPlTabContent() {
     }; })(i);
     opts.appendChild(dot);
   });
+
+  // Tracks
   var tracks = pl.tracks;
   document.getElementById('plCount').innerText = escHtml(pl.name) + ': ' + tracks.length + ' bài';
   var list = document.getElementById('plTrackList');
@@ -643,6 +526,7 @@ function renderPlTabContent() {
 
 function plAddList() {
   PLAYLISTS.push({ name: 'Playlist ' + (PLAYLISTS.length + 1), color: PLAYLISTS.length % PALETTE.length, tracks: [] });
+  queues.push([]);
   activePlTab = PLAYLISTS.length - 1;
   renderPlModal();
 }
@@ -650,6 +534,7 @@ function plAddList() {
 function plDeleteList() {
   if (PLAYLISTS.length <= 1) return;
   PLAYLISTS.splice(activePlTab, 1);
+  queues.splice(activePlTab, 1);
   if (currentPlIdx >= PLAYLISTS.length) { currentPlIdx = 0; updateForBtn(); }
   activePlTab = Math.min(activePlTab, PLAYLISTS.length - 1);
   renderPlModal();
@@ -680,6 +565,7 @@ function plSave() {
     if (res && res.ok) {
       status.className = 'pl-save-status ok';
       status.innerText = '✓ Đã lưu';
+      queues = PLAYLISTS.map(function(){ return []; });
     } else {
       status.className = 'pl-save-status err';
       status.innerText = '✗ Lỗi lưu';
@@ -694,13 +580,111 @@ function escHtml(s) {
 }
 
 // ═══════════════════════════════════════════
+//  QUEUE / SHUFFLE — fixed
+// ═══════════════════════════════════════════
+function buildQueue(plIdx, excludeIdx) {
+  var tracks = PLAYLISTS[plIdx] ? PLAYLISTS[plIdx].tracks : [];
+  var len = tracks.length;
+  var pool = [];
+  for (var i = 0; i < len; i++) {
+    if (len === 1 || i !== excludeIdx) pool.push(i);
+  }
+  for (var i = pool.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  if (!queues[plIdx]) queues[plIdx] = [];
+  queues[plIdx] = pool;
+}
+
+function popNext(plIdx) {
+  if (!queues[plIdx] || !queues[plIdx].length) buildQueue(plIdx, currentTrackIndex);
+  if (!queues[plIdx] || !queues[plIdx].length) return Math.max(0, currentTrackIndex);
+  return queues[plIdx].shift();
+}
+
+function buildEmbedUrl(trackUrl) {
+  return 'https://w.soundcloud.com/player/?url='
+    + encodeURIComponent(trackUrl)
+    + '&auto_play=true&buying=false&sharing=false'
+    + '&show_artwork=false&show_comments=false'
+    + '&show_playcount=false&show_user=false&hide_related=true';
+}
+
+// ═══════════════════════════════════════════
+//  SC WIDGET
+// ═══════════════════════════════════════════
+function setSrc(src) {
+  var iframe = document.getElementById('scPlayer');
+  if (_widget) {
+    try { _widget.unbind(SC.Widget.Events.FINISH); } catch(e) {}
+    _widget = null;
+  }
+  iframe.src = 'about:blank';
+  if (src === 'about:blank') return;
+  setTimeout(function() {
+    iframe.src = src;
+    _widget = SC.Widget(iframe);
+    _widget.bind(SC.Widget.Events.READY, function() {
+      _widget.bind(SC.Widget.Events.FINISH, function() {
+        if (!isPlaying) return;
+        playTrack(currentPlIdx, popNext(currentPlIdx));
+      });
+    });
+  }, 150);
+}
+
+function playTrack(plIdx, trackIndex) {
+  var pl = PLAYLISTS[plIdx];
+  if (!pl || !pl.tracks[trackIndex]) return;
+  currentPlIdx      = plIdx;
+  currentTrackIndex = trackIndex;
+  setSrc(buildEmbedUrl(pl.tracks[trackIndex].url));
+  setPlayingUI(true);
+  updateForBtn();
+}
+
+function setPlayingUI(playing) {
+  isPlaying = playing;
+  document.getElementById('musicImg').classList.toggle('playing', playing);
+}
+
+function toggleMusic() {
+  if (!isPlaying) {
+    if (currentTrackIndex === -1) {
+      buildQueue(currentPlIdx, -1);
+      playTrack(currentPlIdx, popNext(currentPlIdx));
+    } else {
+      setSrc(buildEmbedUrl(PLAYLISTS[currentPlIdx].tracks[currentTrackIndex].url));
+      setPlayingUI(true);
+    }
+  } else {
+    setSrc('about:blank');
+    setPlayingUI(false);
+  }
+}
+
+function switchPlaylist() {
+  var nextIdx = (currentPlIdx + 1) % PLAYLISTS.length;
+  currentPlIdx = nextIdx;
+  buildQueue(nextIdx, -1);
+  var idx = popNext(nextIdx);
+  if (isPlaying) { playTrack(nextIdx, idx); }
+  else { currentTrackIndex = idx; updateForBtn(); }
+}
+
+function rerollTrack() {
+  buildQueue(currentPlIdx, currentTrackIndex);
+  playTrack(currentPlIdx, popNext(currentPlIdx));
+}
+
+// ═══════════════════════════════════════════
 //  BOSS LIST
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
   reviveModal   = new bootstrap.Modal(document.getElementById('reviveModal'));
   playlistModal = new bootstrap.Modal(document.getElementById('playlistModal'));
   updateForBtn();
-  initWidget(); // khởi tạo SC Widget 1 lần duy nhất
 });
 
 function showLoading(show) {
