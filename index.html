@@ -168,8 +168,6 @@
     .modal-header { border-bottom: 1px solid rgba(255,255,255,0.08); }
     .modal-footer { border-top: 1px solid rgba(255,255,255,0.08); }
     .container-fluid { position: relative; z-index: 1; }
-
-    /* ── PLAYLIST MODAL ── */
     #playlistModal .modal-dialog { max-width: 640px; }
     #playlistModal .modal-content { border-color: rgba(63,255,168,0.2); }
     .pl-tabs-wrap { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
@@ -318,7 +316,14 @@
     </div>
   </div>
 
-  <iframe id="scPlayer" src="about:blank" allow="autoplay" scrolling="no" frameborder="no"></iframe>
+  <!--
+    QUAN TRỌNG: iframe phải có src SC hợp lệ ngay từ đầu.
+    SC.Widget() chỉ hoạt động nếu iframe đang load domain soundcloud.
+    Dùng 1 URL discover làm "placeholder" — sẽ bị .load() đè ngay khi user bấm play.
+  -->
+  <iframe id="scPlayer"
+    src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/discover&auto_play=false&buying=false&sharing=false&show_artwork=false&show_comments=false&show_playcount=false&show_user=false&hide_related=true"
+    allow="autoplay" scrolling="no" frameborder="no"></iframe>
 
   <div id="header">
     <div class="container-fluid px-4">
@@ -383,24 +388,137 @@ var PALETTE = [
   { hex: '#3cfff5', glow: 'rgba(60,255,245,0.7)',  glow2: 'rgba(0,160,180,0.5)' },
 ];
 
-var PLAYLISTS = [
+var PLAYLISTS      = [
   { name: 'Playlist A', color: 0, tracks: [] },
   { name: 'Playlist B', color: 1, tracks: [] },
 ];
-
 var currentPlIdx      = 0;
-var currentTrackIndex = -1;   // index trong playlist hiện tại
+var currentTrackIndex = -1;
 var isPlaying         = false;
 var currentData       = null;
 var reviveModal       = null;
 var playlistModal     = null;
 var activePlTab       = 0;
 
-// ── SC Widget state ──
+// ═══════════════════════════════════════════
+//  SC WIDGET
+//  Nguyên tắc:
+//    - Tạo widget 1 lần duy nhất trong initWidget()
+//    - Mỗi lần đổi bài → gọi _widget.load(url, {auto_play:true})
+//    - Sau mỗi .load() widget fire READY lại → ta rebind FINISH trong đó
+//    - KHÔNG bao giờ tạo lại widget hay thay iframe.src nữa
+// ═══════════════════════════════════════════
 var _widget      = null;
-var _iframeReady = false;   // widget đã READY chưa
-var _pendingSrc  = null;    // src chờ load khi widget chưa ready
-var _finishGuard = false;   // chống gọi next 2 lần
+var _widgetReady = false;
+var _pendingPlay = null; // track cần play khi widget chưa ready
+
+function initWidget() {
+  var iframe = document.getElementById('scPlayer');
+  _widget = SC.Widget(iframe);
+
+  _widget.bind(SC.Widget.Events.READY, function() {
+    _widgetReady = true;
+    _bindEvents();                // bind FINISH + chuẩn bị cho lần READY tiếp
+    if (_pendingPlay) {
+      var p = _pendingPlay;
+      _pendingPlay = null;
+      _loadTrack(p.url, p.autoPlay);
+    }
+  });
+}
+
+// Bind FINISH. Sau mỗi .load() widget fire READY → ta gọi lại hàm này.
+// Dùng unbind trước để tránh event bị nhân đôi.
+function _bindEvents() {
+  _widget.unbind(SC.Widget.Events.FINISH);
+  _widget.bind(SC.Widget.Events.FINISH, function() {
+    if (!isPlaying) return;
+    playNext();
+  });
+
+  // Sau mỗi .load() widget fire READY 1 lần nữa → rebind lại FINISH
+  _widget.unbind(SC.Widget.Events.READY);
+  _widget.bind(SC.Widget.Events.READY, function() {
+    _bindEvents();
+  });
+}
+
+function _loadTrack(embedUrl, autoPlay) {
+  _widget.load(embedUrl, { auto_play: autoPlay });
+}
+
+function buildEmbedUrl(trackUrl) {
+  // auto_play KHÔNG nhúng vào URL — truyền qua options của .load()
+  return 'https://w.soundcloud.com/player/?url='
+    + encodeURIComponent(trackUrl)
+    + '&buying=false&sharing=false'
+    + '&show_artwork=false&show_comments=false'
+    + '&show_playcount=false&show_user=false&hide_related=true';
+}
+
+// ── Phát 1 track ──
+function playTrack(plIdx, trackIdx) {
+  var pl = PLAYLISTS[plIdx];
+  if (!pl || !pl.tracks[trackIdx]) return;
+
+  currentPlIdx      = plIdx;
+  currentTrackIndex = trackIdx;
+
+  var url = buildEmbedUrl(pl.tracks[trackIdx].url);
+
+  if (!_widgetReady) {
+    _pendingPlay = { url: url, autoPlay: true };
+  } else {
+    _loadTrack(url, true);
+  }
+
+  setPlayingUI(true);
+  updateForBtn();
+}
+
+function playNext() {
+  var pl = PLAYLISTS[currentPlIdx];
+  if (!pl || !pl.tracks.length) return;
+  var next = (currentTrackIndex + 1) % pl.tracks.length;
+  playTrack(currentPlIdx, next);
+}
+
+function setPlayingUI(on) {
+  isPlaying = on;
+  document.getElementById('musicImg').classList.toggle('playing', on);
+}
+
+// ── Toggle play/pause (bấm avatar) ──
+function toggleMusic() {
+  if (!isPlaying) {
+    var idx = (currentTrackIndex < 0) ? 0 : currentTrackIndex;
+    playTrack(currentPlIdx, idx);
+  } else {
+    if (_widget && _widgetReady) {
+      try { _widget.pause(); } catch(e) {}
+    }
+    setPlayingUI(false);
+  }
+}
+
+// ── Bấm "FOR" → đổi playlist kế tiếp ──
+function switchPlaylist() {
+  currentPlIdx = (currentPlIdx + 1) % PLAYLISTS.length;
+  currentTrackIndex = -1;
+  updateForBtn();
+  if (isPlaying) {
+    playTrack(currentPlIdx, 0);
+  }
+}
+
+// ── Bấm "REROLLLLLL" → bài tiếp theo ──
+function rerollTrack() {
+  var pl = PLAYLISTS[currentPlIdx];
+  if (!pl || !pl.tracks.length) return;
+  // Nếu chưa phát bài nào thì phát bài đầu; ngược lại phát bài kế tiếp
+  var next = (currentTrackIndex < 0) ? 0 : (currentTrackIndex + 1) % pl.tracks.length;
+  playTrack(currentPlIdx, next);
+}
 
 // ═══════════════════════════════════════════
 //  JSONP
@@ -423,7 +541,7 @@ function jsonp(url, callback) {
 }
 
 // ═══════════════════════════════════════════
-//  LOAD PLAYLISTS
+//  LOAD PLAYLISTS TỪ SERVER
 // ═══════════════════════════════════════════
 jsonp(GAS_URL + '?action=getPlaylists', function(data) {
   if (!data) return;
@@ -439,7 +557,7 @@ jsonp(GAS_URL + '?action=getPlaylists', function(data) {
 });
 
 // ═══════════════════════════════════════════
-//  FOR BUTTON
+//  FOR BUTTON COLOR
 // ═══════════════════════════════════════════
 function updateForBtn() {
   var pl = PLAYLISTS[currentPlIdx];
@@ -453,7 +571,7 @@ function updateForBtn() {
 }
 
 // ═══════════════════════════════════════════
-//  PLAYLIST MANAGER
+//  PLAYLIST MANAGER UI
 // ═══════════════════════════════════════════
 function openPlaylistManager() {
   activePlTab = currentPlIdx;
@@ -574,133 +692,13 @@ function escHtml(s) {
 }
 
 // ═══════════════════════════════════════════
-//  INDEX HELPERS — tuần tự, KHÔNG random
-// ═══════════════════════════════════════════
-function nextIndex(plIdx, current) {
-  var len = (PLAYLISTS[plIdx] && PLAYLISTS[plIdx].tracks.length) || 0;
-  if (!len) return 0;
-  return (current + 1) % len;
-}
-
-// ═══════════════════════════════════════════
-//  SC WIDGET — khởi tạo một lần, dùng .load()
-// ═══════════════════════════════════════════
-function initWidget() {
-  // Nếu playlist chưa có track thì thử lại sau 1s
-  var pl = PLAYLISTS[currentPlIdx];
-  if (!pl || !pl.tracks.length) {
-    setTimeout(initWidget, 1000);
-    return;
-  }
-  var src = buildEmbedUrl(pl.tracks[0].url, false);
-  var iframe = document.getElementById('scPlayer');
-  iframe.src = src;
-  _widget = SC.Widget(iframe);
-  _widget.bind(SC.Widget.Events.READY, function() {
-    _iframeReady = true;
-    _bindFinish();
-  });
-}
-
-function _bindFinish() {
-  if (!_widget) return;
-  _widget.bind(SC.Widget.Events.FINISH, function() {
-    if (!isPlaying || _finishGuard) return;
-    _finishGuard = true;
-    setTimeout(function(){ _finishGuard = false; }, 3000);
-    playNext();
-  });
-}
-
-function buildEmbedUrl(trackUrl, autoPlay) {
-  return 'https://w.soundcloud.com/player/?url='
-    + encodeURIComponent(trackUrl)
-    + '&auto_play=' + (autoPlay ? 'true' : 'false')
-    + '&buying=false&sharing=false'
-    + '&show_artwork=false&show_comments=false'
-    + '&show_playcount=false&show_user=false&hide_related=true';
-}
-
-// Phát 1 track theo plIdx + trackIndex
-function playTrack(plIdx, trackIndex) {
-  var pl = PLAYLISTS[plIdx];
-  if (!pl || !pl.tracks[trackIndex]) return;
-  currentPlIdx      = plIdx;
-  currentTrackIndex = trackIndex;
-  _finishGuard      = false;
-
-  var embedUrl = buildEmbedUrl(pl.tracks[trackIndex].url, true);
-
-  if (!_widget || !_iframeReady) {
-    // Widget chưa sẵn sàng → set src iframe, tạo lại widget
-    var iframe = document.getElementById('scPlayer');
-    iframe.src = embedUrl;
-    _iframeReady = false;
-    _widget = SC.Widget(iframe);
-    _widget.bind(SC.Widget.Events.READY, function() {
-      _iframeReady = true;
-      _bindFinish();
-    });
-  } else {
-    // Widget đã ready → dùng .load()
-    _widget.load(embedUrl, { auto_play: true });
-    setTimeout(function() { _bindFinish(); }, 1500);
-  }
-
-  setPlayingUI(true);
-  updateForBtn();
-}
-
-function playNext() {
-  var next = nextIndex(currentPlIdx, currentTrackIndex);
-  playTrack(currentPlIdx, next);
-}
-
-function setPlayingUI(playing) {
-  isPlaying = playing;
-  document.getElementById('musicImg').classList.toggle('playing', playing);
-}
-
-// ── CONTROLS ──
-function toggleMusic() {
-  if (!isPlaying) {
-    var startIdx = (currentTrackIndex === -1) ? 0 : currentTrackIndex;
-    playTrack(currentPlIdx, startIdx);
-  } else {
-    // Pause: dừng bằng cách stop widget
-    if (_widget && _iframeReady) {
-      try { _widget.pause(); } catch(e) {}
-    }
-    setPlayingUI(false);
-  }
-}
-
-function switchPlaylist() {
-  var nextIdx = (currentPlIdx + 1) % PLAYLISTS.length;
-  currentPlIdx = nextIdx;
-  currentTrackIndex = -1;
-  _iframeReady = false; // force reload widget vì đổi playlist
-  if (isPlaying) {
-    playTrack(nextIdx, 0);
-  } else {
-    updateForBtn();
-  }
-}
-
-// "REROLLLLLL" → phát bài TIẾP THEO tuần tự
-function rerollTrack() {
-  var next = nextIndex(currentPlIdx, currentTrackIndex);
-  playTrack(currentPlIdx, next);
-}
-
-// ═══════════════════════════════════════════
 //  BOSS LIST
 // ═══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function() {
   reviveModal   = new bootstrap.Modal(document.getElementById('reviveModal'));
   playlistModal = new bootstrap.Modal(document.getElementById('playlistModal'));
   updateForBtn();
-  initWidget();
+  initWidget(); // khởi tạo SC Widget 1 lần duy nhất
 });
 
 function showLoading(show) {
