@@ -279,19 +279,16 @@
 
 <script>
 // ═══════════════════════════════════════════
-//  PLAYLIST DATA
+//  GAS URL — REST API backend
+// ═══════════════════════════════════════════
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyERPzgaRigH4FzPVGfVLCk-XoicqUpFRt9hXy3j1afHJjPLORQJg3Np9X6cvVAYWs0/exec';
+
+// ═══════════════════════════════════════════
+//  PLAYLIST DATA (fallback, sẽ load từ GAS)
 // ═══════════════════════════════════════════
 var PLAYLISTS = {
-  a: { tracks: [
-    { title: "Nhạc Boss 1", url: "https://soundcloud.com/nocopyrightsounds/alan-walker-fade" },
-    { title: "Nhạc Boss 2", url: "https://soundcloud.com/nocopyrightsounds/elektronomia-sky-high" },
-    { title: "Nhạc Boss 3", url: "https://soundcloud.com/nocopyrightsounds/tobu-infectious" },
-  ]},
-  b: { tracks: [
-    { title: "Chill Track 1", url: "https://soundcloud.com/nocopyrightsounds/ship-wrek-zookeepers-ark" },
-    { title: "Chill Track 2", url: "https://soundcloud.com/nocopyrightsounds/different-heaven-nekozilla" },
-    { title: "Chill Track 3", url: "https://soundcloud.com/nocopyrightsounds/lensko-circles" },
-  ]}
+  a: { tracks: [] },
+  b: { tracks: [] }
 };
 
 // ═══════════════════════════════════════════
@@ -303,37 +300,39 @@ var isPlaying          = false;
 var currentData        = null;
 var reviveModal        = null;
 var queues             = { a: [], b: [] };
-var _loopToken         = 0;
-var _pollInterval      = null;
+var _widget            = null;
 
 // ═══════════════════════════════════════════
 //  LOAD PLAYLISTS TỪ GAS
 // ═══════════════════════════════════════════
-var _scriptUrl = '';
-try {
-  google.script.run.withSuccessHandler(function(url){ _scriptUrl = url; }).getScriptUrl();
-  google.script.run.withSuccessHandler(function(data){
-    PLAYLISTS.a = data.a;
-    PLAYLISTS.b = data.b;
+fetch(GAS_URL + '?action=getPlaylists')
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.a) PLAYLISTS.a = data.a;
+    if (data.b) PLAYLISTS.b = data.b;
     queues.a = []; queues.b = [];
-  }).getPlaylists();
-} catch(e) {}
+  })
+  .catch(function(e){ console.warn('Không load được playlist:', e); });
 
+// ═══════════════════════════════════════════
+//  PLAYLIST MANAGER (mở popup GAS)
+// ═══════════════════════════════════════════
 function openPlaylistManager() {
-  if (!_scriptUrl) { alert('Đang khởi tạo, thử lại sau 1 giây!'); return; }
-  var popup = window.open(_scriptUrl + '?page=playlist', 'PlaylistManager', 'width=650,height=580,resizable=yes,scrollbars=yes');
+  var popup = window.open(GAS_URL + '?page=playlist', 'PlaylistManager', 'width=650,height=580,resizable=yes,scrollbars=yes');
   var timer = setInterval(function() {
     if (popup && popup.closed) {
       clearInterval(timer);
-      try {
-        google.script.run.withSuccessHandler(function(data){
-          PLAYLISTS.a = data.a; PLAYLISTS.b = data.b;
+      fetch(GAS_URL + '?action=getPlaylists')
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.a) PLAYLISTS.a = data.a;
+          if (data.b) PLAYLISTS.b = data.b;
           queues.a = []; queues.b = [];
-          currentTrackIndex = -1; isPlaying = false;
+          currentTrackIndex = -1;
+          isPlaying = false;
           setPlayingUI(false);
           setSrc('about:blank');
-        }).getPlaylists();
-      } catch(e) {}
+        });
     }
   }, 800);
 }
@@ -369,52 +368,34 @@ function buildEmbedUrl(trackUrl) {
 }
 
 // ═══════════════════════════════════════════
-//  POLLING HELPERS
-// ═══════════════════════════════════════════
-function stopPolling() {
-  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
-}
-
-// ═══════════════════════════════════════════
-//  setSrc — load iframe + polling getDuration/getPosition để loop
+//  setSrc — dùng SC Widget FINISH event để auto next
 // ═══════════════════════════════════════════
 function setSrc(src) {
-  _loopToken++;
-  var snap = _loopToken;
   var iframe = document.getElementById('scPlayer');
 
-  stopPolling();
-  iframe.onload = null;
-  iframe.src = 'about:blank';
+  // Unbind widget cũ
+  if (_widget) {
+    try { _widget.unbind(SC.Widget.Events.FINISH); } catch(e) {}
+    _widget = null;
+  }
 
+  iframe.src = 'about:blank';
   if (src === 'about:blank') return;
 
   setTimeout(function() {
-    if (_loopToken !== snap) return;
     iframe.src = src;
-
     iframe.onload = function() {
-      if (_loopToken !== snap) return;
       try {
-        var widget = SC.Widget(iframe);
-        // Đợi widget sẵn sàng rồi mới bắt đầu poll
-        widget.bind(SC.Widget.Events.READY, function() {
-          if (_loopToken !== snap) return;
-          _pollInterval = setInterval(function() {
-            if (_loopToken !== snap || !isPlaying) { stopPolling(); return; }
-            widget.getDuration(function(duration) {
-              if (!duration) return;
-              widget.getPosition(function(position) {
-                // Còn dưới 3 giây → reload để loop
-                if (duration > 0 && (duration - position) < 3000) {
-                  stopPolling();
-                  if (_loopToken === snap && isPlaying) setSrc(src);
-                }
-              });
-            });
-          }, 2000);
+        _widget = SC.Widget(iframe);
+        _widget.bind(SC.Widget.Events.READY, function() {
+          _widget.bind(SC.Widget.Events.FINISH, function() {
+            if (!isPlaying) return;
+            // Tự động chuyển bài tiếp theo
+            var nextIdx = popNext(currentPlaylistKey);
+            playTrack(currentPlaylistKey, nextIdx);
+          });
         });
-      } catch(e) {}
+      } catch(e) { console.warn('SC Widget error:', e); }
     };
   }, 150);
 }
@@ -504,10 +485,10 @@ function loadBosses() {
   var acc = document.getElementById('acc-select').value;
   if (!acc) return;
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(data){ currentData = data; filterByRegion(); })
-    .withFailureHandler(function(){ showLoading(false); })
-    .getBossData(acc);
+  fetch(GAS_URL + '?action=getBossData&acc=' + encodeURIComponent(acc))
+    .then(function(r){ return r.json(); })
+    .then(function(data){ currentData = data; filterByRegion(); })
+    .catch(function(){ showLoading(false); });
 }
 
 function filterByRegion() {
@@ -558,7 +539,9 @@ function updateLocal(bossId, newStatus) {
   if (newStatus === 1) currentData.totalDefeated++;
   else currentData.totalDefeated--;
   filterByRegion();
-  google.script.run.updateStatus(acc, bossId, newStatus === 1 ? 'fight' : 'revive');
+  fetch(GAS_URL + '?action=updateStatus&acc=' + encodeURIComponent(acc)
+    + '&bossId=' + encodeURIComponent(bossId)
+    + '&action2=' + (newStatus === 1 ? 'fight' : 'revive'));
 }
 
 function handleReviveAll() {
@@ -569,10 +552,9 @@ function handleReviveAll() {
   document.getElementById('reviveConfirmBtn').onclick = function() {
     reviveModal.hide();
     showLoading(true);
-    google.script.run
-      .withSuccessHandler(function(){ loadBosses(); })
-      .withFailureHandler(function(){ showLoading(false); })
-      .reviveAllBosses(acc);
+    fetch(GAS_URL + '?action=reviveAll&acc=' + encodeURIComponent(acc))
+      .then(function(){ loadBosses(); })
+      .catch(function(){ showLoading(false); });
   };
 }
 </script>
