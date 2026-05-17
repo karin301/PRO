@@ -616,22 +616,50 @@ function buildEmbedUrl(trackUrl) {
 // ═══════════════════════════════════════════
 //  SC WIDGET
 // ═══════════════════════════════════════════
+var _pollTimer = null;
+
 function setSrc(src) {
   var iframe = document.getElementById('scPlayer');
+  
+  // Dừng poll cũ
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  
   if (_widget) {
     try { _widget.unbind(SC.Widget.Events.FINISH); } catch(e) {}
     _widget = null;
   }
   iframe.src = 'about:blank';
   if (src === 'about:blank') return;
+
   setTimeout(function() {
     iframe.src = src;
     _widget = SC.Widget(iframe);
     _widget.bind(SC.Widget.Events.READY, function() {
+      // Vẫn bind FINISH phòng trường hợp hoạt động
       _widget.bind(SC.Widget.Events.FINISH, function() {
         if (!isPlaying) return;
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
         playTrack(currentPlIdx, popNext(currentPlIdx));
       });
+
+      // Polling dự phòng: cứ 2s check position vs duration
+      _pollTimer = setInterval(function() {
+        if (!isPlaying || !_widget) return;
+        try {
+          _widget.getDuration(function(dur) {
+            if (!dur || dur < 1000) return;
+            _widget.getPosition(function(pos) {
+              // Nếu còn 1.5s cuối hoặc pos >= dur-500
+              if (pos > 0 && pos >= dur - 1500) {
+                clearInterval(_pollTimer); _pollTimer = null;
+                setTimeout(function() {
+                  if (isPlaying) playTrack(currentPlIdx, popNext(currentPlIdx));
+                }, 1200);
+              }
+            });
+          });
+        } catch(e) {}
+      }, 2000);
     });
   }, 150);
 }
